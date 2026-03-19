@@ -19,7 +19,9 @@
   --text:#e8f4f0;--dim:#6a8a82;--accent:#64f0c8;--accent2:#44ccff;
   --warn:#ffb84c;--danger:#ff5f63;--mono:'IBM Plex Mono',monospace;--sans:'Space Grotesk',sans-serif;
 }
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overflow-x:hidden}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overflow-x:hidden;overflow-y:auto}
+html,body{scrollbar-width:none;-ms-overflow-style:none}
+html::-webkit-scrollbar,body::-webkit-scrollbar{width:0;height:0}
 .bg-grid{position:fixed;inset:0;pointer-events:none;opacity:0;
   background-image:linear-gradient(rgba(100,240,200,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(100,240,200,0.03) 1px,transparent 1px);
   background-size:60px 60px;mask-image:radial-gradient(ellipse at 50% 30%,black 20%,transparent 70%)}

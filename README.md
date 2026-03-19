@@ -64,7 +64,7 @@ It was built for anyone who wants to understand what's actually happening in the
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/calesthio/Crucix.git
+git clone https://github.com/MPZ-00/Crucix.git
 cd Crucix
 
 # 2. Install dependencies (just Express)
@@ -90,7 +90,7 @@ The dashboard opens automatically at `http://localhost:3117` and immediately beg
 ### Docker
 
 ```bash
-git clone https://github.com/calesthio/Crucix.git
+git clone https://github.com/MPZ-00/Crucix.git
 cd Crucix
 cp .env.example .env    # add your API keys
 docker compose up -d
@@ -156,7 +156,7 @@ Crucix also supports Discord as a full-featured bot with slash commands and rich
 
 Alerts are delivered as rich embeds with color-coded sidebars: red for FLASH, yellow for PRIORITY, blue for ROUTINE. Each embed includes signal details, confidence scores, and cross-domain correlations.
 
-**Setup requires:** `DISCORD_BOT_TOKEN`, `DISCORD_CHANNEL_ID`, and optionally `DISCORD_GUILD_ID` for instant slash command registration. See [API Keys Setup](#api-keys-setup) for details.
+**Setup requires:** `DISCORD_BOT_TOKEN` and either `DISCORD_CHANNEL_ID` (single target) or `DISCORD_CHANNEL_IDS` (comma-separated multiple targets). Optionally set `DISCORD_GUILD_ID` or `DISCORD_GUILD_IDS` for instant slash command registration. See [API Keys Setup](#api-keys-setup) for details.
 
 **Webhook fallback:** If you don't want to run a full bot, set `DISCORD_WEBHOOK_URL` instead. This enables one-way alerts (no slash commands) with zero dependencies — no `discord.js` needed.
 
@@ -227,9 +227,12 @@ For Codex, run `npx @openai/codex login` to authenticate via your ChatGPT subscr
 | Key | How to Get |
 |-----|------------|
 | `DISCORD_BOT_TOKEN` | Create at [Discord Developer Portal](https://discord.com/developers/applications) → Bot → Token |
-| `DISCORD_CHANNEL_ID` | Right-click channel in Discord (Developer Mode on) → Copy Channel ID |
-| `DISCORD_GUILD_ID` | *(Optional)* Right-click server → Copy Server ID. Enables instant slash command registration (otherwise takes up to 1 hour for global commands) |
-| `DISCORD_WEBHOOK_URL` | *(Optional)* Channel Settings → Integrations → Webhooks → New Webhook → Copy URL. Use this for alert-only mode without a bot |
+| `DISCORD_CHANNEL_ID` | Single channel target. Right-click channel in Discord (Developer Mode on) → Copy Channel ID |
+| `DISCORD_CHANNEL_IDS` | *(Optional)* Comma-separated multiple channel IDs for multi-server or multi-channel alert fanout |
+| `DISCORD_GUILD_ID` | *(Optional)* Single server ID for instant slash command registration |
+| `DISCORD_GUILD_IDS` | *(Optional)* Comma-separated multiple server IDs for instant slash command registration |
+| `DISCORD_WEBHOOK_URL` | *(Optional)* Single webhook fallback URL for alert-only mode without a bot |
+| `DISCORD_WEBHOOK_URLS` | *(Optional)* Comma-separated multiple webhook URLs for multi-target alert-only mode |
 
 **Discord bot setup:**
 1. Go to [Discord Developer Portal](https://discord.com/developers/applications) and create a new application
@@ -397,9 +400,12 @@ All settings are in `.env` with sensible defaults:
 | `TELEGRAM_CHANNELS` | — | Extra channel IDs to monitor (comma-separated) |
 | `TELEGRAM_POLL_INTERVAL` | `5000` | Bot command polling interval (ms) |
 | `DISCORD_BOT_TOKEN` | disabled | For Discord alerts + slash commands |
-| `DISCORD_CHANNEL_ID` | — | Discord channel for alerts |
-| `DISCORD_GUILD_ID` | — | Server ID (instant slash command registration) |
-| `DISCORD_WEBHOOK_URL` | — | Webhook URL (alert-only fallback, no bot needed) |
+| `DISCORD_CHANNEL_ID` | — | Single Discord channel for alerts |
+| `DISCORD_CHANNEL_IDS` | — | Multiple Discord channel IDs for fanout (comma-separated) |
+| `DISCORD_GUILD_ID` | — | Single server ID (instant slash command registration) |
+| `DISCORD_GUILD_IDS` | — | Multiple server IDs (instant slash command registration, comma-separated) |
+| `DISCORD_WEBHOOK_URL` | — | Single webhook URL (alert-only fallback, no bot needed) |
+| `DISCORD_WEBHOOK_URLS` | — | Multiple webhook URLs for alert-only fanout (comma-separated) |
 
 Delta engine thresholds (how sensitive the system is to changes between sweeps) can be customized in `crucix.config.mjs` under the `delta.thresholds` section. The defaults are tuned to filter out noise while catching meaningful moves.
 
@@ -479,12 +485,12 @@ Make sure both `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are set in `.env`. Th
 ### Discord bot not responding to slash commands
 
 Check these in order:
-1. Make sure `DISCORD_BOT_TOKEN` and `DISCORD_CHANNEL_ID` are set in `.env`
+1. Make sure `DISCORD_BOT_TOKEN` and at least one of `DISCORD_CHANNEL_ID` or `DISCORD_CHANNEL_IDS` is set in `.env`
 2. Verify `discord.js` is installed: `npm ls discord.js`. If missing, run `npm install discord.js`
-3. If slash commands don't appear, set `DISCORD_GUILD_ID` — without it, global commands can take up to 1 hour to propagate. Guild-specific commands register instantly
+3. If slash commands don't appear, set `DISCORD_GUILD_ID` or `DISCORD_GUILD_IDS` — without them, global commands can take up to 1 hour to propagate. Guild-specific commands register instantly
 4. Confirm the bot was invited with `bot` + `applications.commands` scopes and has `Send Messages` + `Embed Links` permissions in the target channel
 5. Check server logs for `[Discord] Bot logged in as ...` on startup. If you see `[Discord] discord.js not installed`, install it and restart
-6. **Webhook-only fallback:** If you just want alerts without slash commands, set `DISCORD_WEBHOOK_URL` instead of the bot token. No `discord.js` needed.
+6. **Webhook-only fallback:** If you just want alerts without slash commands, set `DISCORD_WEBHOOK_URL` or `DISCORD_WEBHOOK_URLS` instead of the bot token. No `discord.js` needed.
 
 ---
 

@@ -22,8 +22,11 @@ export default {
   discord: {
     botToken: process.env.DISCORD_BOT_TOKEN || null,
     channelId: process.env.DISCORD_CHANNEL_ID || null,
+    channelIds: process.env.DISCORD_CHANNEL_IDS || null,
     guildId: process.env.DISCORD_GUILD_ID || null,   // Server ID (for instant slash command registration)
+    guildIds: process.env.DISCORD_GUILD_IDS || null,
     webhookUrl: process.env.DISCORD_WEBHOOK_URL || null, // Fallback: webhook-only alerts (no bot needed)
+    webhookUrls: process.env.DISCORD_WEBHOOK_URLS || null,
   },
 
   // Delta engine thresholds — override defaults from lib/delta/engine.mjs
