@@ -22,6 +22,11 @@
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overflow-x:hidden;overflow-y:auto}
 html,body{scrollbar-width:none;-ms-overflow-style:none}
 html::-webkit-scrollbar,body::-webkit-scrollbar{width:0;height:0}
+.pause-banner{display:none;padding:12px 18px;background:linear-gradient(135deg,rgba(255,95,99,0.15),rgba(255,95,99,0.08));border:1px solid rgba(255,95,99,0.3);border-top:none;animation:pulse-warn 1.5s ease-in-out infinite}
+.pause-banner.show{display:flex;align-items:center;justify-content:space-between}
+.pause-banner-text{font-family:var(--mono);font-size:12px;letter-spacing:0.08em;color:#ffb3b6}
+.pause-banner-time{font-weight:600;color:#ff8a8f;margin:0 6px}
+@keyframes pulse-warn{0%,100%{opacity:0.8}50%{opacity:1}}
 .bg-grid{position:fixed;inset:0;pointer-events:none;opacity:0;
   background-image:linear-gradient(rgba(100,240,200,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(100,240,200,0.03) 1px,transparent 1px);
   background-size:60px 60px;mask-image:radial-gradient(ellipse at 50% 30%,black 20%,transparent 70%)}
@@ -337,6 +342,10 @@ body.low-perf .ticker-wrap::-webkit-scrollbar-thumb{background:rgba(100,240,200,
 <div class="scanline" id="scanline"></div>
 <div id="main">
   <div class="topbar" id="topbar"></div>
+  <div class="pause-banner" id="pauseBanner">
+    <span class="pause-banner-text">UPDATES PAUSED FOR <span class="pause-banner-time" id="pauseRemaining">--</span></span>
+    <button onclick="resumeUpdates()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);color:var(--text);padding:4px 10px;font-family:var(--mono);font-size:10px;cursor:pointer;border-radius:2px;transition:all 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.25)';this.style.borderColor='rgba(255,255,255,0.4)'" onmouseout="this.style.background='rgba(255,255,255,0.15)';this.style.borderColor='rgba(255,255,255,0.2)'">RESUME NOW</button>
+  </div>
   <div class="grid">
     <div class="col" id="leftRail"></div>
     <div class="col" id="centerCol">
@@ -1989,20 +1998,25 @@ let pauseCountdownInterval = null;
 function updatePauseDisplay() {
   const pauseBtn = document.getElementById('pauseBtn');
   const pauseTimeEl = document.getElementById('pauseTime');
-  if (!pauseBtn || !pauseTimeEl) return;
+  const pauseBanner = document.getElementById('pauseBanner');
+  const pauseRemaining = document.getElementById('pauseRemaining');
+  if (!pauseBtn || !pauseTimeEl || !pauseBanner) return;
   
   if (pausedUntil && Date.now() < new Date(pausedUntil).getTime()) {
     const remaining = Math.ceil((new Date(pausedUntil) - Date.now()) / 1000 / 60);
     pauseTimeEl.textContent = remaining > 0 ? `(${remaining}m)` : '';
+    pauseRemaining.textContent = remaining > 0 ? `${remaining} MINUTE${remaining !== 1 ? 'S' : ''}` : '';
     pauseBtn.style.background = 'rgba(255,95,99,0.2)';
     pauseBtn.style.borderColor = 'rgba(255,95,99,0.4)';
     pauseBtn.style.color = '#ffb3b6';
+    pauseBanner.classList.add('show');
   } else if (pausedUntil) {
     pausedUntil = null;
     pauseTimeEl.textContent = '';
     pauseBtn.style.background = 'rgba(68,204,255,0.15)';
     pauseBtn.style.borderColor = 'rgba(68,204,255,0.4)';
     pauseBtn.style.color = 'var(--accent2)';
+    pauseBanner.classList.remove('show');
   }
 }
 
