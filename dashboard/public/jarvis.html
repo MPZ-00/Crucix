@@ -47,7 +47,7 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{width:0;height:0}
 #main{opacity:0;min-height:100vh;position:relative;padding:10px 12px}
 
 /* TOPBAR */
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border:1px solid var(--border);background:var(--panel);backdrop-filter:blur(20px);flex-wrap:wrap;gap:10px}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border:1px solid var(--border);background:var(--panel);backdrop-filter:blur(20px);flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:100}
 .top-left{display:flex;align-items:center;gap:14px}
 .brand{font-family:var(--mono);font-weight:700;font-size:15px;letter-spacing:0.12em;text-transform:uppercase}
 .regime-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;border:1px solid rgba(255,95,99,0.3);color:#ffd8d9;background:rgba(255,95,99,0.08)}
@@ -360,7 +360,7 @@ body.low-perf .ticker-wrap::-webkit-scrollbar-thumb{background:rgba(100,240,200,
     <div class="col" id="rightRail"></div>
   </div>
 </div>
-<div class="glossary-overlay" id="briefingOverlay" onclick="if(event.target===this) closeBriefing()" style="display:none">
+<div class="glossary-overlay" id="briefingOverlay" onclick="if(event.target===this) closeBriefing()">
   <div class="glossary-panel" style="max-width:600px;max-height:80vh;overflow-y:auto">
     <div class="glossary-head">
       <div>
@@ -1727,8 +1727,7 @@ function showBriefingModal(){
   const overlay = document.getElementById('briefingOverlay');
   if(!overlay) return;
   document.getElementById('briefingBody').innerHTML = '<div style="text-align:center;color:var(--dim)">Loading briefing...</div>';
-  overlay.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
+  overlay.classList.add('show');
   
   // Fetch current briefing data
   fetch('/api/data')
@@ -1746,8 +1745,7 @@ function showBriefingModal(){
 function closeBriefing(){
   const overlay = document.getElementById('briefingOverlay');
   if(!overlay) return;
-  overlay.style.display = 'none';
-  document.body.style.overflow = '';
+  overlay.classList.remove('show');
 }
 
 function generateBriefingHTML(D){
