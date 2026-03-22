@@ -13,10 +13,11 @@ const SYMBOLS = {
   QQQ: 'Nasdaq 100',
   DIA: 'Dow Jones',
   IWM: 'Russell 2000',
-  // Rates / Credit
+  // Rates / Credit / FX
   TLT: '20Y+ Treasury',
   HYG: 'High Yield Corp',
   LQD: 'IG Corporate',
+  'EURUSD=X': 'EUR/USD',
   // Commodities
   'GC=F': 'Gold',
   'SI=F': 'Silver',
@@ -26,6 +27,7 @@ const SYMBOLS = {
   // Crypto
   'BTC-USD': 'Bitcoin',
   'ETH-USD': 'Ethereum',
+  'XMR-USD': 'Monero',
   // Volatility
   '^VIX': 'VIX',
 };
@@ -118,9 +120,9 @@ export async function collect() {
       timestamp: new Date().toISOString(),
     },
     indexes: pickGroup(quotes, ['SPY', 'QQQ', 'DIA', 'IWM']),
-    rates: pickGroup(quotes, ['TLT', 'HYG', 'LQD']),
+    rates: pickGroup(quotes, ['TLT', 'HYG', 'LQD', 'EURUSD=X']),
     commodities: pickGroup(quotes, ['GC=F', 'SI=F', 'CL=F', 'BZ=F', 'NG=F']),
-    crypto: pickGroup(quotes, ['BTC-USD', 'ETH-USD']),
+    crypto: pickGroup(quotes, ['BTC-USD', 'ETH-USD', 'XMR-USD']),
     volatility: pickGroup(quotes, ['^VIX']),
   };
 }
