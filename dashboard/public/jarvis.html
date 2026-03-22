@@ -88,6 +88,11 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{width:0;height:0}
 .ldot.health{background:#69f0ae;box-shadow:0 0 6px rgba(105,240,174,0.4)}
 .ldot.news{background:#81d4fa;box-shadow:0 0 6px rgba(129,212,250,0.4)}
 .ldot.space{background:#e0b0ff;box-shadow:0 0 6px rgba(224,176,255,0.4)}
+.ldot.weather{background:#87ceeb;box-shadow:0 0 6px rgba(135,206,235,0.4)}
+.ldot.energy{background:#ffd700;box-shadow:0 0 6px rgba(255,215,0,0.4)}
+.ldot.economic{background:#90ee90;box-shadow:0 0 6px rgba(144,238,144,0.4)}
+.ldot.european{background:#4169e1;box-shadow:0 0 6px rgba(65,105,225,0.4)}
+.ldot.location{background:#ff69b4;box-shadow:0 0 6px rgba(255,105,180,0.4)}
 .layer-name{font-size:12px;font-weight:500}
 .layer-sub{font-size:10px;color:var(--dim)}
 .layer-count{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent)}
@@ -514,6 +519,7 @@ const regionPOV = {
   world: { lat: 20, lng: 20, altitude: 1.8 },
   americas: { lat: 35, lng: -95, altitude: 1.0 },
   europe: { lat: 50, lng: 15, altitude: 1.0 },
+  germany: { lat: 51, lng: 10, altitude: 0.5 },
   middleEast: { lat: 28, lng: 45, altitude: 1.1 },
   asiaPacific: { lat: 25, lng: 110, altitude: 1.2 },
   africa: { lat: 5, lng: 20, altitude: 1.2 }
@@ -561,8 +567,8 @@ function togglePerfMode(){
 
 // === TOPBAR ===
 function getRegionControlsMarkup(){
-  return ['world','americas','europe','middleEast','asiaPacific','africa'].map(r=>
-    `<button class="region-btn ${r===currentRegion?'active':''}" data-region="${r}" onclick="setRegion('${r}')">${r==='middleEast'?'MIDDLE EAST':r==='asiaPacific'?'ASIA PACIFIC':r.toUpperCase()}</button>`
+  return ['world','americas','europe','germany','middleEast','asiaPacific','africa'].map(r=>
+    `<button class="region-btn ${r===currentRegion?'active':''}" data-region="${r}" onclick="setRegion('${r}')">${r==='middleEast'?'MIDDLE EAST':r==='asiaPacific'?'ASIA PACIFIC':r==='germany'?'🇩🇪 GERMANY':r.toUpperCase()}</button>`
   ).join('');
 }
 
@@ -619,7 +625,13 @@ function renderLeftRail(){
     {name:t('layers.healthWatch','Health Watch'),count:D.who.length,dot:'health',sub:t('layers.whoAlerts','WHO alerts')},
     {name:t('layers.worldNews','World News'),count:newsCount,dot:'news',sub:t('layers.rssGeolocated','RSS geolocated')},
     {name:t('layers.osintFeed','OSINT Feed'),count:D.tg.posts,dot:'incident',sub:`${D.tg.urgent.length} ${t('badges.urgent','urgent').toLowerCase()}`},
-    {name:t('layers.spaceActivity','Satellites'),count:D.space?.militarySats||0,dot:'space',sub:`${D.space?.totalNewObjects||0} ${t('space.newLast30d','new (30d)')}`}
+    {name:t('layers.spaceActivity','Satellites'),count:D.space?.militarySats||0,dot:'space',sub:`${D.space?.totalNewObjects||0} ${t('space.newLast30d','new (30d)')}`},
+    // German Data Sources
+    {name:'Weather Alerts',count:D.dwd?.totalAlerts||0,dot:'weather',sub:`${D.dwd?.severityCounts?.extreme||0} extreme`},
+    {name:'Power Grid',count:(D.smard?.renewable||0).toFixed(1)+'%',dot:'energy',sub:`Renewable: ${(D.smard?.renewable||0).toFixed(1)}%`},
+    {name:'Germany Economy',count:(D.destatis?.cpi||0).toFixed(2)+'%',dot:'economic',sub:`Inflation: ${(D.destatis?.cpi||0).toFixed(2)}% YoY`},
+    {name:'EU Context',count:(D.eurostat?.germanyVsEU?.cpi?.germany||0).toFixed(2)+'%',dot:'european',sub:`Germany CPI: ${(D.eurostat?.germanyVsEU?.cpi?.germany||0).toFixed(2)}%`},
+    {name:'Location Index',count:D.nominatim?.cacheEntries||0,dot:'location',sub:`Cache: ${D.nominatim?.cacheUtilization||0}% used`}
   ];
   const allNormal=D.nuke.every(s=>!s.anom);
   const nukeHtml=D.nuke.map(s=>`<div class="site-row"><span>${s.site}</span><span class="site-val">${s.n>0?(s.cpm?.toFixed(1)||'--')+' CPM':'No data'}</span></div>`).join('');
@@ -834,6 +846,24 @@ function initGlobe(){
   globeInitialized = true;
 }
 
+// Region bounding boxes for filtering (lon/lat ranges)
+const regionBounds = {
+  world: { lonMin: -180, lonMax: 180, latMin: -60, latMax: 80 },
+  americas: { lonMin: -130, lonMax: -60, latMin: 10, latMax: 55 },
+  europe: { lonMin: -12, lonMax: 45, latMin: 34, latMax: 72 },
+  germany: { lonMin: 5, lonMax: 16, latMin: 47, latMax: 56 },
+  middleEast: { lonMin: 24, lonMax: 65, latMin: 10, latMax: 45 },
+  asiaPacific: { lonMin: 60, lonMax: 180, latMin: -12, latMax: 55 },
+  africa: { lonMin: -20, lonMax: 55, latMin: -36, latMax: 38 }
+};
+
+function isPointInRegion(lat, lon, region) {
+  if (region === 'world') return true;
+  const bounds = regionBounds[region];
+  if (!bounds) return true;
+  return lon >= bounds.lonMin && lon <= bounds.lonMax && lat >= bounds.latMin && lat <= bounds.latMax;
+}
+
 function plotMarkers(){
   if(!globe) return;
   const points = [];
@@ -973,12 +1003,14 @@ function plotMarkers(){
     });
   });
 
-  // Set points on globe
-  globe.pointsData(points);
-  globe.labelsData(labels);
+  // Set points on globe, filtered by current region
+  const filteredPoints = currentRegion === 'world' ? points : points.filter(p => isPointInRegion(p.lat, p.lng, currentRegion));
+  const filteredLabels = currentRegion === 'world' ? labels : labels.filter(l => isPointInRegion(l.lat, l.lng, currentRegion));
+  globe.pointsData(filteredPoints);
+  globe.labelsData(filteredLabels);
 
   // === ACLED CONFLICT EVENTS (pulsing rings) ===
-  const conflictRings = (D.acled?.deadliestEvents || []).filter(e => e.lat && e.lon).map(e => {
+  const allConflictRings = (D.acled?.deadliestEvents || []).filter(e => e.lat && e.lon).map(e => {
     const logFatal = Math.log2(Math.max(e.fatalities, 1));
     return {
       lat: e.lat, lng: e.lon,
@@ -989,6 +1021,7 @@ function plotMarkers(){
       popText: `${e.fatalities} fatalities<br>${e.location}, ${e.country}<br>Date: ${e.date}`
     };
   });
+  const conflictRings = allConflictRings.filter(r => isPointInRegion(r.lat, r.lng, currentRegion));
   globe.ringsData(conflictRings);
 
   // === FLIGHT CORRIDORS (3D arcs) ===
@@ -1040,7 +1073,12 @@ function plotMarkers(){
     });
   });
   }
-  globe.arcsData(arcs);
+  // Filter arcs by region
+  const filteredArcs = arcs.filter(a => 
+    isPointInRegion(a.startLat, a.startLng, currentRegion) || 
+    isPointInRegion(a.endLat, a.endLng, currentRegion)
+  );
+  globe.arcsData(filteredArcs);
 
   // Zoom-aware marker sizing: scale markers and labels with camera altitude
   const onGlobeZoom = () => {
@@ -1124,7 +1162,7 @@ function toggleFlights() {
 // === FLAT/GLOBE TOGGLE ===
 const flatRegionBounds = {
   world:[[-180,-60],[180,80]], americas:[[-130,10],[-60,55]], europe:[[-12,34],[45,72]],
-  middleEast:[[24,10],[65,45]], asiaPacific:[[60,-12],[180,55]], africa:[[-20,-36],[55,38]]
+  germany:[[5,47],[16,56]], middleEast:[[24,10],[65,45]], asiaPacific:[[60,-12],[180,55]], africa:[[-20,-36],[55,38]]
 };
 
 function toggleMapMode(){
@@ -1305,6 +1343,7 @@ function setRegion(r){
   } else {
     const pov=regionPOV[r]||regionPOV.world;
     globe.pointOfView(pov,1000);
+    plotMarkers();
   }
 }
 
