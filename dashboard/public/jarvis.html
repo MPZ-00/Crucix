@@ -2026,9 +2026,9 @@ function updatePauseDisplay() {
   
   if (pausedUntil && Date.now() < new Date(pausedUntil).getTime()) {
     const totalSeconds = Math.ceil((new Date(pausedUntil) - Date.now()) / 1000);
-    const remaining = Math.ceil(totalSeconds / 60);
-    pauseTimeEl.textContent = remaining > 0 ? `(${remaining}m)` : '';
-    pauseRemaining.textContent = formatPauseDuration(totalSeconds);
+    const formatted = formatPauseDuration(totalSeconds);
+    pauseTimeEl.textContent = formatted ? `(${formatted})` : '';
+    pauseRemaining.textContent = formatted;
     pauseBtn.style.background = 'rgba(255,95,99,0.2)';
     pauseBtn.style.borderColor = 'rgba(255,95,99,0.4)';
     pauseBtn.style.color = '#ffb3b6';
