@@ -2010,7 +2010,7 @@ function updatePauseDisplay() {
     pauseBtn.style.borderColor = 'rgba(255,95,99,0.4)';
     pauseBtn.style.color = '#ffb3b6';
     pauseBanner.classList.add('show');
-  } else if (pausedUntil) {
+  } else {
     pausedUntil = null;
     pauseTimeEl.textContent = '';
     pauseBtn.style.background = 'rgba(68,204,255,0.15)';
