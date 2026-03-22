@@ -360,6 +360,20 @@ body.low-perf .ticker-wrap::-webkit-scrollbar-thumb{background:rgba(100,240,200,
     <div class="col" id="rightRail"></div>
   </div>
 </div>
+<div class="glossary-overlay" id="briefingOverlay" onclick="if(event.target===this) closeBriefing()" style="display:none">
+  <div class="glossary-panel" style="max-width:600px;max-height:80vh;overflow-y:auto">
+    <div class="glossary-head">
+      <div>
+        <div class="glossary-kicker">Intelligence Briefing</div>
+        <div class="glossary-title" id="briefingTitle">Current Situation</div>
+        <div class="glossary-sub" id="briefingSub">Real-time synthesis of global intelligence signals</div>
+      </div>
+      <button class="glossary-close" onclick="closeBriefing()" aria-label="Close briefing">&times;</button>
+    </div>
+    <div class="glossary-body" id="briefingBody" style="font-size:13px;line-height:1.6;color:var(--text)"></div>
+    <div class="glossary-foot"><button onclick="downloadBriefing()" style="padding:6px 12px;background:rgba(255,215,0,0.2);border:1px solid rgba(255,215,0,0.4);color:var(--accent3);cursor:pointer;border-radius:2px">Download as Text</button></div>
+  </div>
+</div>
 <div class="glossary-overlay" id="glossaryOverlay" onclick="if(event.target===this) closeGlossary()">
   <div class="glossary-panel">
     <div class="glossary-head">
@@ -584,11 +598,29 @@ function renderRegionControls(){
   mapRegionBar.style.display = 'flex';
 }
 
+function formatTimestamp(ts){
+  const use24h = localStorage.getItem('crucix_time_format') === '24h';
+  if(use24h){
+    const h = String(ts.getHours()).padStart(2,'0');
+    const m = String(ts.getMinutes()).padStart(2,'0');
+    return `${h}:${m}`;
+  } else {
+    return ts.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+  }
+}
+
+function toggleTimeFormat(){
+  const currentFormat = localStorage.getItem('crucix_time_format') || '12h';
+  const newFormat = currentFormat === '12h' ? '24h' : '12h';
+  localStorage.setItem('crucix_time_format', newFormat);
+  renderTopbar();
+}
+
 function renderTopbar(){
   const mobile = isMobileLayout();
   const ts = new Date(D.meta.timestamp);
   const d = ts.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}).toUpperCase();
-  const timeStr = ts.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+  const timeStr = formatTimestamp(ts);
   document.getElementById('topbar').innerHTML=`
     <div class="top-left">
       <span class="brand">CRUCIX MONITOR</span>
@@ -598,9 +630,10 @@ function renderTopbar(){
     <div class="top-right">
       <button class="meta-pill perf-pill" onclick="togglePerfMode()" title="Reduce visual effects and start mobile in flat mode">${t('dashboard.perf','PERF')} <span class="v" id="perfStatus">${lowPerfMode?t('dashboard.perfLow','LOW'):t('dashboard.perfHigh','HIGH')}</span></button>
       <span class="meta-pill">${t('dashboard.sweep','SWEEP')} <span class="v">${(D.meta.totalDurationMs/1000).toFixed(1)}s</span></span>
-      <span class="meta-pill">${d} <span class="v">${timeStr}</span></span>
+      <span class="meta-pill" id="timeDisplay" onclick="toggleTimeFormat()" style="cursor:pointer;transition:opacity 0.2s" title="Click to toggle time format">${d} <span class="v">${timeStr}</span></span>
       <span class="meta-pill">${t('dashboard.sources','SOURCES')} <span class="v">${D.meta.sourcesOk}/${D.meta.sourcesQueried}</span></span>
       ${D.delta?.summary ? `<span class="meta-pill">${t('dashboard.delta','DELTA')} <span class="v">${D.delta.summary.direction==='risk-off'?'&#x25B2; '+t('dashboard.riskOff','RISK-OFF'):D.delta.summary.direction==='risk-on'?'&#x25BC; '+t('dashboard.riskOn','RISK-ON'):'&#x25C6; '+t('dashboard.mixed','MIXED')}</span></span>` : ''}
+      <button class="guide-btn" onclick="showBriefingModal()" style="background:rgba(255,215,0,0.15);border-color:rgba(255,215,0,0.4)">${t('dashboard.briefingBtn','BRIEFING')}</button>
       <button class="guide-btn" onclick="openGlossary()">${t('dashboard.guideBtn','What Signals Mean')}</button>
       <span class="alert-badge">${t('dashboard.highAlert','HIGH ALERT')}</span>
     </div>`;
@@ -644,8 +677,10 @@ function renderLeftRail(){
 
   document.getElementById('leftRail').innerHTML=`
     <div class="g-panel">
-      <div class="sec-head"><h3>${t('panels.sensorGrid','Sensor Grid')}</h3><span class="badge">${t('badges.live','LIVE')}</span></div>
-      ${layers.map(l=>`<div class="layer-item"><div class="layer-left"><div class="ldot ${l.dot}"></div><div><div class="layer-name">${l.name}</div><div class="layer-sub">${l.sub}</div></div></div><div class="layer-count">${l.count}</div></div>`).join('')}
+      <div class="sec-head" onclick="toggleSensorGrid()" style="cursor:pointer;user-select:none;transition:opacity 0.2s"><h3>${t('panels.sensorGrid','Sensor Grid')}</h3><span class="badge" id="sensorGridBadge" style="transition:transform 0.2s">▼</span></div>
+      <div id="sensorGridItems">
+        ${layers.map(l=>`<div class="layer-item"><div class="layer-left"><div class="ldot ${l.dot}"></div><div><div class="layer-name">${l.name}</div><div class="layer-sub">${l.sub}</div></div></div><div class="layer-count">${l.count}</div></div>`).join('')}
+      </div>
     </div>
     <div class="g-panel">
       <div class="sec-head"><h3>${t('panels.nuclearWatch','Nuclear Watch')}</h3><span class="badge">${t('badges.radiation','RADIATION')}</span></div>
@@ -1159,6 +1194,31 @@ function toggleFlights() {
   }
 }
 
+// === SENSOR GRID EXPAND/COLLAPSE ===
+function toggleSensorGrid(){
+  const items = document.getElementById('sensorGridItems');
+  const badge = document.getElementById('sensorGridBadge');
+  if(!items || !badge) return;
+  
+  const isExpanded = localStorage.getItem('crucix_sensor_grid_expanded') !== 'false';
+  const newState = !isExpanded;
+  localStorage.setItem('crucix_sensor_grid_expanded', newState);
+  
+  items.style.display = newState ? 'block' : 'none';
+  badge.textContent = newState ? '▼' : '▶';
+  badge.style.transform = newState ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+
+// Apply sensor grid state on render
+setTimeout(() => {
+  const items = document.getElementById('sensorGridItems');
+  const badge = document.getElementById('sensorGridBadge');
+  if(!items || !badge) return;
+  const isExpanded = localStorage.getItem('crucix_sensor_grid_expanded') !== 'false';
+  items.style.display = isExpanded ? 'block' : 'none';
+  badge.textContent = isExpanded ? '▼' : '▶';
+}, 100);
+
 // === FLAT/GLOBE TOGGLE ===
 const flatRegionBounds = {
   world:[[-180,-60],[180,80]], americas:[[-130,10],[-60,55]], europe:[[-12,34],[45,72]],
@@ -1660,6 +1720,117 @@ function renderGlossary(){
       <div class="glossary-line"><span class="glossary-label">Example</span>${item.example}</div>
     </div>
   `).join('');
+}
+
+
+function showBriefingModal(){
+  const overlay = document.getElementById('briefingOverlay');
+  if(!overlay) return;
+  document.getElementById('briefingBody').innerHTML = '<div style="text-align:center;color:var(--dim)">Loading briefing...</div>';
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  
+  // Fetch current briefing data
+  fetch('/api/data')
+    .then(r => r.json())
+    .then(D => {
+      const html = generateBriefingHTML(D);
+      document.getElementById('briefingBody').innerHTML = html;
+      document.getElementById('briefingTitle').textContent = 'Current Situation — ' + new Date(D.meta?.timestamp).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    })
+    .catch(e => {
+      document.getElementById('briefingBody').innerHTML = '<div style="color:var(--warn)">Error loading briefing: ' + e.message + '</div>';
+    });
+}
+
+function closeBriefing(){
+  const overlay = document.getElementById('briefingOverlay');
+  if(!overlay) return;
+  overlay.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function generateBriefingHTML(D){
+  const sections = [];
+  
+  // German context
+  if(D.dwd || D.smard || D.destatis) {
+    sections.push(`<div style="margin-bottom:16px;padding:8px;border-left:3px solid rgba(255,215,0,0.4)">
+      <div style="font-weight:600;color:rgba(255,215,0,0.9)">🇩🇪 GERMANY STATUS</div>
+      ${D.smard ? `<div>• Power: ${D.smard.renewable?.toFixed(1)}% renewable (${D.smard.gridLoad?.toFixed(0)}% grid load)</div>` : ''}
+      ${D.destatis ? `<div>• Economy: ${D.destatis.cpi?.toFixed(2)}% inflation YoY, ${D.destatis.unemployment?.toFixed(1)}% unemployment</div>` : ''}
+      ${D.dwd?.signals?.[0] ? `<div>• Weather: ${D.dwd.signals[0]}</div>` : ''}
+    </div>`);
+  }
+  
+  // Global macro
+  if(D.fred?.length > 0) {
+    const vix = D.fred.find(f => f.id === 'VIXCLS');
+    const hy = D.fred.find(f => f.id === 'BAMLH0A0HYM2');
+    sections.push(`<div style="margin-bottom:16px;padding:8px;border-left:3px solid rgba(106,182,206,0.4)">
+      <div style="font-weight:600;color:rgba(106,182,206,0.9)">GLOBAL MACRO</div>
+      ${vix ? `<div>• VIX: ${vix.value?.toFixed(1)} (${vix.value > 20 ? 'ELEVATED' : 'normal'})</div>` : ''}
+      ${hy ? `<div>• HY Spread: ${hy.value?.toFixed(2)}% (${hy.value > 5 ? 'WIDENING' : 'normal'})</div>` : ''}
+      ${D.energy ? `<div>• Oil: WTI $${D.energy.wti?.toFixed(2)}/bbl, Brent $${D.energy.brent?.toFixed(2)}/bbl</div>` : ''}
+    </div>`);
+  }
+  
+  // Conflict summary
+ if(D.acled?.totalEvents > 0) {
+    sections.push(`<div style="margin-bottom:16px;padding:8px;border-left:3px solid rgba(255,95,99,0.4)">
+      <div style="font-weight:600;color:rgba(255,95,99,0.9)">⚠️ CONFLICT</div>
+      <div>• Total events: ${D.acled.totalEvents} | Fatalities: ${D.acled.totalFatalities?.toLocaleString() || '~TBD'}</div>
+      ${D.acled.deadliestEvents?.[0] ? `<div>• Latest: ${D.acled.deadliestEvents[0].location}, ${D.acled.deadliestEvents[0].country}</div>` : ''}
+    </div>`);
+  }
+  
+  // Thermal
+  const totalThermal = (D.thermal || []).reduce((s,t) => s + (t.det || 0), 0);
+  if(totalThermal > 0) {
+    sections.push(`<div style="margin-bottom:16px;padding:8px;border-left:3px solid rgba(255,95,99,0.4)">
+      <div style="font-weight:600;color:rgba(255,95,99,0.9)">🔥 THERMAL ACTIVITY</div>
+      <div>• Total detections: ${totalThermal.toLocaleString()}</div>
+      <div>• High confidence: ${(D.thermal || []).reduce((s,t) => s + (t.hc || 0), 0).toLocaleString()}</div>
+    </div>`);
+  }
+  
+  // Air activity
+  const totalAir = (D.air || []).reduce((s,a) => s + (a.total || 0), 0);
+  if(totalAir > 0) {
+    sections.push(`<div style="margin-bottom:16px;padding:8px;border-left:3px solid rgba(100,240,200,0.4)">
+      <div style="font-weight:600;color:rgba(100,240,200,0.9)">✈️ AIR TRAFFIC</div>
+      <div>• Aircraft tracked: ${totalAir.toLocaleString()}</div>
+      <div>• Hotspots: ${D.air?.length || 0}</div>
+    </div>`);
+  }
+  
+  // Health
+  if(D.who?.length > 0) {
+    sections.push(`<div style="margin-bottom:16px;padding:8px;border-left:3px solid rgba(105,240,174,0.4)">
+      <div style="font-weight:600;color:rgba(105,240,174,0.9)">🏥 HEALTH</div>
+      <div>• WHO alerts: ${D.who.length}</div>
+      ${D.who[0] ? `<div>• Latest: ${D.who[0].title}</div>` : ''}
+    </div>`);
+  }
+  
+  // Method note
+  sections.push(`<div style="margin-top:20px;padding:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.1);border-radius:3px;font-size:11px;color:var(--dim);line-height:1.5">
+    <strong>Methodology:</strong> This briefing synthesizes real-time data from 32+ sensors: air traffic (OpenSky), thermal (FIRMS), conflict (ACLED), macro (FRED/Yahoo), health (WHO), and specialized German sources (DWD, SMARD, Destatis, Eurostat, Nominatim).
+    All data sourced from public APIs. Summary updated every 30 seconds.
+  </div>`);
+  
+  return sections.join('');
+}
+
+function downloadBriefing(){
+  const text = document.getElementById('briefingBody').innerText || 'Briefing unavailable';
+  const blob = new Blob([text], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'crucix-briefing-' + new Date().toISOString().split('T')[0] + '.txt';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function openGlossary(){
