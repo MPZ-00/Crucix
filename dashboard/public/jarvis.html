@@ -728,7 +728,7 @@ function bindMapLifecycleEvents(){
 function renderMapLegend(){
   document.getElementById('mapLegend').innerHTML=
     [{c:'#64f0c8',l:t('map.airTraffic','Air Traffic')},{c:'#ff5f63',l:t('map.thermalFire','Thermal/Fire')},{c:'rgba(255,120,80,0.8)',l:t('map.conflict','Conflict')},{c:'#44ccff',l:t('map.sdrReceiver','SDR Receiver')},
-     {c:'#ffe082',l:t('map.nuclearSite','Nuclear Site')},{c:'#b388ff',l:t('map.chokepoint','Chokepoint')},{c:'#ffb84c',l:t('map.osintEvent','OSINT Event')},{c:'#69f0ae',l:t('map.healthAlert','Health Alert')},{c:'#81d4fa',l:t('map.worldNews','World News')},{c:'#ff9800',l:t('map.weatherAlert','Weather Alert')},{c:'#cddc39',l:t('map.epaRadNet','EPA RadNet')},{c:'#ffffff',l:t('map.spaceStation','Space Station')},{c:'#6495ed',l:t('map.gdeltEvent','GDELT Event')},{c:'#b086ff',l:'German Cities'}]
+     {c:'#ffe082',l:t('map.nuclearSite','Nuclear Site')},{c:'#b388ff',l:t('map.chokepoint','Chokepoint')},{c:'#ffb84c',l:t('map.osintEvent','OSINT Event')},{c:'#69f0ae',l:t('map.healthAlert','Health Alert')},{c:'#81d4fa',l:t('map.worldNews','World News')},{c:'#ff9800',l:t('map.weatherAlert','Weather Alert')},{c:'#cddc39',l:t('map.epaRadNet','EPA RadNet')},{c:'#ffffff',l:t('map.spaceStation','Space Station')},{c:'#6495ed',l:t('map.gdeltEvent','GDELT Event')},{c:'#00d4ff',l:'World Capitals'}]
     .map(x=>`<div class="leg-item"><div class="leg-dot" style="background:${x.c}"></div>${x.l}</div>`).join('');
 }
 
@@ -1017,21 +1017,91 @@ function plotMarkers(){
     });
   });
 
-  // === German Cities and Infrastructure ===
-  const germanCities = [
-    {lat:52.52, lng:13.40, name:'Berlin', note:'Capital, government hub'},
-    {lat:48.14, lng:11.58, name:'Munich', note:'Bavaria, tech center'},
-    {lat:53.55, lng:10.00, name:'Hamburg', note:'Northern port, logistics'},
-    {lat:50.11, lng:8.68, name:'Frankfurt', note:'Financial hub'},
-    {lat:50.94, lng:6.96, name:'Cologne', note:'Rhine region'},
-    {lat:47.65, lng:9.17, name:'Bodensee', note:'Alpine lake region'}
+  // === World Capitals (political centers) ===
+  const worldCapitals = [
+    // Americas
+    {lat:38.91, lng:-77.04, name:'Washington, D.C.', region:'Capital - USA'},
+    {lat:45.42, lng:-75.70, name:'Ottawa', region:'Capital - Canada'},
+    {lat:19.43, lng:-99.13, name:'Mexico City', region:'Capital - Mexico'},
+    {lat:-15.80, lng:-47.88, name:'Brasília', region:'Capital - Brazil'},
+    {lat:-34.60, lng:-58.38, name:'Buenos Aires', region:'Capital - Argentina'},
+    {lat:-12.05, lng:-77.04, name:'Lima', region:'Capital - Peru'},
+    {lat:4.71, lng:-74.07, name:'Bogotá', region:'Capital - Colombia'},
+    {lat:10.50, lng:-66.92, name:'Caracas', region:'Capital - Venezuela'},
+    {lat:-33.45, lng:-70.67, name:'Santiago', region:'Capital - Chile'},
+    {lat:18.04, lng:-76.81, name:'Kingston', region:'Capital - Jamaica'},
+    // Europe
+    {lat:51.51, lng:-0.13, name:'London', region:'Capital - UK'},
+    {lat:48.86, lng:2.35, name:'Paris', region:'Capital - France'},
+    {lat:40.42, lng:-3.70, name:'Madrid', region:'Capital - Spain'},
+    {lat:41.90, lng:12.50, name:'Rome', region:'Capital - Italy'},
+    {lat:37.98, lng:23.73, name:'Athens', region:'Capital - Greece'},
+    {lat:48.21, lng:16.37, name:'Vienna', region:'Capital - Austria'},
+    {lat:50.08, lng:14.44, name:'Prague', region:'Capital - Czech Republic'},
+    {lat:52.23, lng:21.01, name:'Warsaw', region:'Capital - Poland'},
+    {lat:52.52, lng:13.40, name:'Berlin', region:'Capital - Germany'},
+    {lat:55.76, lng:37.62, name:'Moscow', region:'Capital - Russia'},
+    {lat:59.33, lng:18.07, name:'Stockholm', region:'Capital - Sweden'},
+    {lat:55.68, lng:12.57, name:'Copenhagen', region:'Capital - Denmark'},
+    {lat:53.34, lng:-6.27, name:'Dublin', region:'Capital - Ireland'},
+    {lat:38.72, lng:-9.14, name:'Lisbon', region:'Capital - Portugal'},
+    {lat:52.37, lng:4.89, name:'Amsterdam', region:'Capital - Netherlands'},
+    {lat:50.85, lng:4.35, name:'Brussels', region:'Capital - Belgium'},
+    {lat:47.37, lng:8.55, name:'Bern', region:'Capital - Switzerland'},
+    {lat:47.50, lng:19.04, name:'Budapest', region:'Capital - Hungary'},
+    {lat:50.45, lng:30.52, name:'Kyiv', region:'Capital - Ukraine'},
+    {lat:44.43, lng:26.10, name:'Bucharest', region:'Capital - Romania'},
+    {lat:42.70, lng:23.33, name:'Sofia', region:'Capital - Bulgaria'},
+    // Middle East
+    {lat:24.45, lng:54.37, name:'Abu Dhabi', region:'Capital - UAE'},
+    {lat:24.77, lng:46.67, name:'Riyadh', region:'Capital - Saudi Arabia'},
+    {lat:35.69, lng:51.39, name:'Tehran', region:'Capital - Iran'},
+    {lat:33.31, lng:44.36, name:'Baghdad', region:'Capital - Iraq'},
+    {lat:31.95, lng:35.23, name:'Jerusalem', region:'Capital - Israel'},
+    {lat:33.89, lng:35.50, name:'Beirut', region:'Capital - Lebanon'},
+    {lat:33.51, lng:36.28, name:'Damascus', region:'Capital - Syria'},
+    {lat:31.95, lng:35.93, name:'Amman', region:'Capital - Jordan'},
+    {lat:25.29, lng:51.52, name:'Doha', region:'Capital - Qatar'},
+    {lat:29.38, lng:47.98, name:'Kuwait City', region:'Capital - Kuwait'},
+    // Africa
+    {lat:30.04, lng:31.24, name:'Cairo', region:'Capital - Egypt'},
+    {lat:6.45, lng:3.39, name:'Lagos', region:'Capital - Nigeria'},
+    {lat:-25.75, lng:28.23, name:'Pretoria', region:'Capital - South Africa'},
+    {lat:-1.29, lng:36.82, name:'Nairobi', region:'Capital - Kenya'},
+    {lat:9.03, lng:38.75, name:'Addis Ababa', region:'Capital - Ethiopia'},
+    {lat:36.76, lng:3.06, name:'Algiers', region:'Capital - Algeria'},
+    {lat:34.02, lng:-6.84, name:'Rabat', region:'Capital - Morocco'},
+    {lat:36.81, lng:10.18, name:'Tunis', region:'Capital - Tunisia'},
+    {lat:5.60, lng:-0.19, name:'Accra', region:'Capital - Ghana'},
+    {lat:-1.95, lng:30.06, name:'Kigali', region:'Capital - Rwanda'},
+    {lat:14.66, lng:-17.44, name:'Dakar', region:'Capital - Senegal'},
+    // Asia
+    {lat:28.70, lng:77.10, name:'New Delhi', region:'Capital - India'},
+    {lat:39.90, lng:116.41, name:'Beijing', region:'Capital - China'},
+    {lat:22.30, lng:114.17, name:'Hong Kong', region:'Capital (SAR) - China'},
+    {lat:13.73, lng:100.49, name:'Bangkok', region:'Capital - Thailand'},
+    {lat:1.35, lng:103.82, name:'Singapore', region:'Capital - Singapore'},
+    {lat:3.14, lng:101.69, name:'Kuala Lumpur', region:'Capital - Malaysia'},
+    {lat:6.21, lng:106.85, name:'Jakarta', region:'Capital - Indonesia'},
+    {lat:37.57, lng:126.98, name:'Seoul', region:'Capital - South Korea'},
+    {lat:35.68, lng:139.69, name:'Tokyo', region:'Capital - Japan'},
+    {lat:21.03, lng:105.85, name:'Hanoi', region:'Capital - Vietnam'},
+    {lat:10.78, lng:106.70, name:'Ho Chi Minh City', region:'Largest city - Vietnam'},
+    {lat:14.60, lng:120.98, name:'Manila', region:'Capital - Philippines'},
+    {lat:33.68, lng:73.18, name:'Islamabad', region:'Capital - Pakistan'},
+    {lat:34.53, lng:69.18, name:'Kabul', region:'Capital - Afghanistan'},
+    {lat:6.92, lng:80.77, name:'Colombo', region:'Capital - Sri Lanka'},
+    {lat:23.81, lng:90.41, name:'Dhaka', region:'Capital - Bangladesh'},
+    // Oceania
+    {lat:-35.28, lng:149.13, name:'Canberra', region:'Capital - Australia'},
+    {lat:-41.29, lng:174.78, name:'Wellington', region:'Capital - New Zealand'}
   ];
-  germanCities.forEach(c=>{
+  worldCapitals.forEach(c=>{
     points.push({
-      lat:c.lat, lng:c.lng, size:0.22, alt:0.011,
-      color:'rgba(176,134,255,0.75)', type:'german-city', priority:2,
-      popHead:c.name, popMeta:'German Location',
-      popText:c.note
+      lat:c.lat, lng:c.lng, size:0.20, alt:0.010,
+      color:'rgba(0,212,255,0.78)', type:'capital', priority:2,
+      popHead:c.name, popMeta:'World Capital',
+      popText:c.region
     });
   });
 
