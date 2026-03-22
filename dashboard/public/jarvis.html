@@ -633,6 +633,7 @@ function renderTopbar(){
       <span class="meta-pill" id="timeDisplay" onclick="toggleTimeFormat()" style="cursor:pointer;transition:opacity 0.2s" title="Click to toggle time format">${d} <span class="v">${timeStr}</span></span>
       <span class="meta-pill">${t('dashboard.sources','SOURCES')} <span class="v">${D.meta.sourcesOk}/${D.meta.sourcesQueried}</span></span>
       ${D.delta?.summary ? `<span class="meta-pill">${t('dashboard.delta','DELTA')} <span class="v">${D.delta.summary.direction==='risk-off'?'&#x25B2; '+t('dashboard.riskOff','RISK-OFF'):D.delta.summary.direction==='risk-on'?'&#x25BC; '+t('dashboard.riskOn','RISK-ON'):'&#x25C6; '+t('dashboard.mixed','MIXED')}</span></span>` : ''}
+      <button class="guide-btn" id="pauseBtn" onclick="togglePause()" style="background:rgba(68,204,255,0.15);border-color:rgba(68,204,255,0.4)" title="Pause AI updates for preset time">${t('dashboard.pauseBtn','PAUSE AI')} <span id="pauseTime"></span></button>
       <button class="guide-btn" onclick="showBriefingModal()" style="background:rgba(255,215,0,0.15);border-color:rgba(255,215,0,0.4)">${t('dashboard.briefingBtn','BRIEFING')}</button>
       <button class="guide-btn" onclick="openGlossary()">${t('dashboard.guideBtn','What Signals Mean')}</button>
       <span class="alert-badge">${t('dashboard.highAlert','HIGH ALERT')}</span>
@@ -1982,6 +1983,34 @@ function reinit(){
 }
 
 // === SSE: Live Updates from Server ===
+let pausedUntil = null;
+let pauseCountdownInterval = null;
+
+function updatePauseDisplay() {
+  const pauseBtn = document.getElementById('pauseBtn');
+  const pauseTimeEl = document.getElementById('pauseTime');
+  if (!pauseBtn || !pauseTimeEl) return;
+  
+  if (pausedUntil && Date.now() < new Date(pausedUntil).getTime()) {
+    const remaining = Math.ceil((new Date(pausedUntil) - Date.now()) / 1000 / 60);
+    pauseTimeEl.textContent = remaining > 0 ? `(${remaining}m)` : '';
+    pauseBtn.style.background = 'rgba(255,95,99,0.2)';
+    pauseBtn.style.borderColor = 'rgba(255,95,99,0.4)';
+    pauseBtn.style.color = '#ffb3b6';
+  } else if (pausedUntil) {
+    pausedUntil = null;
+    pauseTimeEl.textContent = '';
+    pauseBtn.style.background = 'rgba(68,204,255,0.15)';
+    pauseBtn.style.borderColor = 'rgba(68,204,255,0.4)';
+    pauseBtn.style.color = 'var(--accent2)';
+  }
+}
+
+function startPauseCountdown() {
+  if (pauseCountdownInterval) clearInterval(pauseCountdownInterval);
+  pauseCountdownInterval = setInterval(updatePauseDisplay, 1000);
+}
+
 function connectSSE(){
   if (typeof EventSource === 'undefined') return;
   // Only connect if served from localhost (not file://)
@@ -2003,6 +2032,14 @@ function connectSSE(){
       } else if (msg.type === 'sweep_start') {
         const badge = document.querySelector('.alert-badge');
         if (badge) { badge.textContent = 'SWEEPING...'; badge.style.borderColor = 'var(--accent)'; }
+      } else if (msg.type === 'paused') {
+        pausedUntil = msg.pausedUntil;
+        startPauseCountdown();
+        updatePauseDisplay();
+      } else if (msg.type === 'resumed') {
+        pausedUntil = null;
+        if (pauseCountdownInterval) clearInterval(pauseCountdownInterval);
+        updatePauseDisplay();
       }
     } catch {}
   };
@@ -2036,6 +2073,42 @@ function init(){
     if(e.key === 'Escape') closeGlossary();
   });
   syncResponsiveLayout(true);
+  updatePauseDisplay();
+}
+
+// === PAUSE CONTROLS ===
+function togglePause() {
+  if (pausedUntil && Date.now() < new Date(pausedUntil).getTime()) {
+    resumeUpdates();
+  } else {
+    pauseUpdates(60);
+  }
+}
+
+function pauseUpdates(minutes = 60) {
+  fetch('/api/pause', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ minutes: Math.min(Math.max(5, minutes), 1440) })
+  })
+  .then(r => r.json())
+  .then(data => {
+    pausedUntil = data.pausedUntil;
+    startPauseCountdown();
+    updatePauseDisplay();
+  })
+  .catch(err => console.error('Pause failed:', err.message));
+}
+
+function resumeUpdates() {
+  fetch('/api/resume', { method: 'POST' })
+  .then(r => r.json())
+  .then(() => {
+    pausedUntil = null;
+    if (pauseCountdownInterval) clearInterval(pauseCountdownInterval);
+    updatePauseDisplay();
+  })
+  .catch(err => console.error('Resume failed:', err.message));
 }
 
 document.addEventListener('DOMContentLoaded', () => {

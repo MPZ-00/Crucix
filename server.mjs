@@ -32,6 +32,7 @@ let currentData = null;    // Current synthesized dashboard data
 let lastSweepTime = null;  // Timestamp of last sweep
 let sweepStartedAt = null; // Timestamp when current/last sweep started
 let sweepInProgress = false;
+let pauseUntil = null;     // ISO timestamp: pause sweeps until this time (null = not paused)
 const startTime = Date.now();
 const sseClients = new Set();
 
@@ -257,15 +258,18 @@ app.get('/api/data', (req, res) => {
 
 // API: health check
 app.get('/api/health', (req, res) => {
+  const pauseRemaining = pauseUntil ? Math.max(0, (new Date(pauseUntil) - Date.now()) / 1000) : null;
   res.json({
     status: 'ok',
     uptime: Math.floor((Date.now() - startTime) / 1000),
     lastSweep: lastSweepTime,
-    nextSweep: lastSweepTime
+    nextSweep: pauseUntil ? null : (lastSweepTime
       ? new Date(new Date(lastSweepTime).getTime() + config.refreshIntervalMinutes * 60000).toISOString()
-      : null,
+      : null),
     sweepInProgress,
     sweepStartedAt,
+    pausedUntil: pauseUntil,
+    pauseRemaining: pauseRemaining ? Math.ceil(pauseRemaining) : null,
     sourcesOk: currentData?.meta?.sourcesOk || 0,
     sourcesFailed: currentData?.meta?.sourcesFailed || 0,
     llmEnabled: !!config.llm.provider,
@@ -274,6 +278,24 @@ app.get('/api/health', (req, res) => {
     refreshIntervalMinutes: config.refreshIntervalMinutes,
     language: currentLanguage,
   });
+});
+
+// API: pause/resume updates
+app.post('/api/pause', express.json(), (req, res) => {
+  const { minutes = 60 } = req.body; // Default 60 minutes
+  const validMinutes = Math.min(Math.max(5, minutes), 1440); // 5-1440 min bounds
+  pauseUntil = new Date(Date.now() + validMinutes * 60000).toISOString();
+  console.log(`[Crucix] Updates paused for ${validMinutes} minutes until ${pauseUntil}`);
+  broadcast({ type: 'paused', pausedUntil: pauseUntil, minutes: validMinutes });
+  res.json({ status: 'paused', pausedUntil: pauseUntil, minutes: validMinutes });
+});
+
+// API: resume updates
+app.post('/api/resume', (req, res) => {
+  pauseUntil = null;
+  console.log('[Crucix] Updates resumed');
+  broadcast({ type: 'resumed' });
+  res.json({ status: 'resumed' });
 });
 
 // API: available locales
@@ -306,6 +328,17 @@ function broadcast(data) {
 
 // === Sweep Cycle ===
 async function runSweepCycle() {
+  // Check if paused
+  if (pauseUntil && Date.now() < new Date(pauseUntil).getTime()) {
+    const remaining = Math.ceil((new Date(pauseUntil) - Date.now()) / 1000 / 60);
+    console.log(`[Crucix] Sweep skipped — updates paused for ${remaining} more minute${remaining !== 1 ? 's' : ''}`);
+    return;
+  } else if (pauseUntil) {
+    // Pause expired
+    pauseUntil = null;
+    console.log('[Crucix] Pause expired — resuming updates');
+  }
+
   if (sweepInProgress) {
     console.log('[Crucix] Sweep already in progress, skipping');
     return;
