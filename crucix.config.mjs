@@ -44,4 +44,20 @@ export default {
       },
     },
   },
+
+  // Per-source refresh intervals (minutes). Built into source logic.
+  sourceRefreshIntervals: {
+    DWD: 60,           // German weather updates hourly
+    SMARD: 15,         // Power grid live (15-min updates)
+    Destatis: 1440,    // Economic data daily
+    Eurostat: 1440,    // EU data daily
+    GDELT: 360,        // Global events 6-hourly
+    Nominatim: 0,      // On-demand (no scheduled refresh)
+  },
+
+  // Nominatim caching configuration
+  nominatim: {
+    cacheTtlMinutes: parseInt(process.env.NOMINATIM_CACHE_TTL_MINUTES) || 5,
+    maxCacheSize: 1000,
+  },
 };

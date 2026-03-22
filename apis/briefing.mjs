@@ -37,6 +37,13 @@ import { briefing as reddit } from './sources/reddit.mjs';
 import { briefing as telegram } from './sources/telegram.mjs';
 import { briefing as kiwisdr } from './sources/kiwisdr.mjs';
 
+// === Tier 3.5: German Data Sources ===
+import { briefing as dwd } from './sources/dwd.mjs';
+import { briefing as smard } from './sources/smard.mjs';
+import { briefing as destatis } from './sources/destatis.mjs';
+import { briefing as eurostat } from './sources/eurostat.mjs';
+import { briefing as nominatim } from './sources/nominatim.mjs';
+
 // === Tier 4: Space & Satellites ===
 import { briefing as space } from './sources/space.mjs';
 
@@ -46,98 +53,105 @@ import { briefing as yfinance } from './sources/yfinance.mjs';
 const SOURCE_TIMEOUT_MS = 30_000; // 30s max per individual source
 
 export async function runSource(name, fn, ...args) {
-  const start = Date.now();
-  let timer;
-  try {
-    const dataPromise = fn(...args);
-    const timeoutPromise = new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`Source ${name} timed out after ${SOURCE_TIMEOUT_MS / 1000}s`)), SOURCE_TIMEOUT_MS);
-    });
-    const data = await Promise.race([dataPromise, timeoutPromise]);
-    return { name, status: 'ok', durationMs: Date.now() - start, data };
-  } catch (e) {
-    return { name, status: 'error', durationMs: Date.now() - start, error: e.message };
-  } finally {
-    clearTimeout(timer);
-  }
+	const start = Date.now();
+	let timer;
+	try {
+		const dataPromise = fn(...args);
+		const timeoutPromise = new Promise((_, reject) => {
+			timer = setTimeout(() => reject(new Error(`Source ${name} timed out after ${SOURCE_TIMEOUT_MS / 1000}s`)), SOURCE_TIMEOUT_MS);
+		});
+		const data = await Promise.race([dataPromise, timeoutPromise]);
+		return { name, status: 'ok', durationMs: Date.now() - start, data };
+	} catch (e) {
+		return { name, status: 'error', durationMs: Date.now() - start, error: e.message };
+	} finally {
+		clearTimeout(timer);
+	}
 }
 
 export async function fullBriefing() {
-  console.error('[Crucix] Starting intelligence sweep — 27 sources...');
-  const start = Date.now();
+	console.error('[Crucix] Starting intelligence sweep — 32 sources...');
+	const start = Date.now();
 
-  const allPromises = [
-    // Tier 1: Core OSINT & Geopolitical
-    runSource('GDELT', gdelt),
-    runSource('OpenSky', opensky),
-    runSource('FIRMS', firms),
-    runSource('Maritime', ships),
-    runSource('Safecast', safecast),
-    runSource('ACLED', acled),
-    runSource('ReliefWeb', reliefweb),
-    runSource('WHO', who),
-    runSource('OFAC', ofac),
-    runSource('OpenSanctions', opensanctions),
-    runSource('ADS-B', adsb),
+	const allPromises = [
+		// Tier 1: Core OSINT & Geopolitical
+		runSource('GDELT', gdelt),
+		runSource('OpenSky', opensky),
+		runSource('FIRMS', firms),
+		runSource('Maritime', ships),
+		runSource('Safecast', safecast),
+		runSource('ACLED', acled),
+		runSource('ReliefWeb', reliefweb),
+		runSource('WHO', who),
+		runSource('OFAC', ofac),
+		runSource('OpenSanctions', opensanctions),
+		runSource('ADS-B', adsb),
 
-    // Tier 2: Economic & Financial
-    runSource('FRED', fred, process.env.FRED_API_KEY),
-    runSource('Treasury', treasury),
-    runSource('BLS', bls, process.env.BLS_API_KEY),
-    runSource('EIA', eia, process.env.EIA_API_KEY),
-    runSource('GSCPI', gscpi),
-    runSource('USAspending', usaspending),
-    runSource('Comtrade', comtrade),
+		// Tier 2: Economic & Financial
+		runSource('FRED', fred, process.env.FRED_API_KEY),
+		runSource('Treasury', treasury),
+		runSource('BLS', bls, process.env.BLS_API_KEY),
+		runSource('EIA', eia, process.env.EIA_API_KEY),
+		runSource('GSCPI', gscpi),
+		runSource('USAspending', usaspending),
+		runSource('Comtrade', comtrade),
 
-    // Tier 3: Weather, Environment, Technology, Social
-    runSource('NOAA', noaa),
-    runSource('EPA', epa),
-    runSource('Patents', patents),
-    runSource('Bluesky', bluesky),
-    runSource('Reddit', reddit),
-    runSource('Telegram', telegram),
-    runSource('KiwiSDR', kiwisdr),
+		// Tier 3: Weather, Environment, Technology, Social
+		runSource('NOAA', noaa),
+		runSource('EPA', epa),
+		runSource('Patents', patents),
+		runSource('Bluesky', bluesky),
+		runSource('Reddit', reddit),
+		runSource('Telegram', telegram),
+		runSource('KiwiSDR', kiwisdr),
 
-    // Tier 4: Space & Satellites
-    runSource('Space', space),
+		// Tier 3.5: German Data Sources (weather, power, economy, events, location)
+		runSource('DWD', dwd),
+		runSource('SMARD', smard),
+		runSource('Destatis', destatis),
+		runSource('Eurostat', eurostat),
+		runSource('Nominatim', nominatim),
 
-    // Tier 5: Live Market Data
-    runSource('YFinance', yfinance),
-  ];
+		// Tier 4: Space & Satellites
+		runSource('Space', space),
 
-  // Each runSource has its own 30s timeout, so allSettled will resolve
-  // within ~30s even if APIs hang. Global timeout is a safety net.
-  const results = await Promise.allSettled(allPromises);
+		// Tier 5: Live Market Data
+		runSource('YFinance', yfinance),
+	];
 
-  const sources = results.map(r => r.status === 'fulfilled' ? r.value : { status: 'failed', error: r.reason?.message });
-  const totalMs = Date.now() - start;
+	// Each runSource has its own 30s timeout, so allSettled will resolve
+	// within ~30s even if APIs hang. Global timeout is a safety net.
+	const results = await Promise.allSettled(allPromises);
 
-  const output = {
-    crucix: {
-      version: '2.0.0',
-      timestamp: new Date().toISOString(),
-      totalDurationMs: totalMs,
-      sourcesQueried: sources.length,
-      sourcesOk: sources.filter(s => s.status === 'ok').length,
-      sourcesFailed: sources.filter(s => s.status !== 'ok').length,
-    },
-    sources: Object.fromEntries(
-      sources.filter(s => s.status === 'ok').map(s => [s.name, s.data])
-    ),
-    errors: sources.filter(s => s.status !== 'ok').map(s => ({ name: s.name, error: s.error })),
-    timing: Object.fromEntries(
-      sources.map(s => [s.name, { status: s.status, ms: s.durationMs }])
-    ),
-  };
+	const sources = results.map(r => r.status === 'fulfilled' ? r.value : { status: 'failed', error: r.reason?.message });
+	const totalMs = Date.now() - start;
 
-  console.error(`[Crucix] Sweep complete in ${totalMs}ms — ${output.crucix.sourcesOk}/${sources.length} sources returned data`);
-  return output;
+	const output = {
+		crucix: {
+			version: '2.0.0',
+			timestamp: new Date().toISOString(),
+			totalDurationMs: totalMs,
+			sourcesQueried: sources.length,
+			sourcesOk: sources.filter(s => s.status === 'ok').length,
+			sourcesFailed: sources.filter(s => s.status !== 'ok').length,
+		},
+		sources: Object.fromEntries(
+			sources.filter(s => s.status === 'ok').map(s => [s.name, s.data])
+		),
+		errors: sources.filter(s => s.status !== 'ok').map(s => ({ name: s.name, error: s.error })),
+		timing: Object.fromEntries(
+			sources.map(s => [s.name, { status: s.status, ms: s.durationMs }])
+		),
+	};
+
+	console.error(`[Crucix] Sweep complete in ${totalMs}ms — ${output.crucix.sourcesOk}/${sources.length} sources returned data`);
+	return output;
 }
 
 // Run and output when executed directly
 const entryHref = process.argv[1] ? pathToFileURL(process.argv[1]).href : null;
 
 if (entryHref && import.meta.url === entryHref) {
-  const data = await fullBriefing();
-  console.log(JSON.stringify(data, null, 2));
+	const data = await fullBriefing();
+	console.log(JSON.stringify(data, null, 2));
 }
