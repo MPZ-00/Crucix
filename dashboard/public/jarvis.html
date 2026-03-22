@@ -1998,6 +1998,7 @@ let pausedUntil = null;
 let pauseCountdownInterval = null;
 let sweepCountdownInterval = null;
 let refreshIntervalMinutes = 15;
+let pauseAiMultiplier = 4;
 let nextSweepTime = null;
 
 function formatPauseDuration(totalSeconds) {
@@ -2078,6 +2079,9 @@ function fetchHealthData() {
     .then(health => {
       if (health.refreshIntervalMinutes) {
         refreshIntervalMinutes = health.refreshIntervalMinutes;
+      }
+      if (health.pauseAiMultiplier) {
+        pauseAiMultiplier = health.pauseAiMultiplier;
       }
       if (health.nextSweep) {
         nextSweepTime = health.nextSweep;
@@ -2168,7 +2172,7 @@ function togglePause() {
   if (pausedUntil && Date.now() < new Date(pausedUntil).getTime()) {
     resumeUpdates();
   } else {
-    pauseUpdates(4 * refreshIntervalMinutes);
+    pauseUpdates(pauseAiMultiplier * refreshIntervalMinutes);
   }
 }
 

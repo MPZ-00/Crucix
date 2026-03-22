@@ -276,6 +276,7 @@ app.get('/api/health', (req, res) => {
     llmProvider: config.llm.provider,
     telegramEnabled: !!(config.telegram.botToken && config.telegram.chatId),
     refreshIntervalMinutes: config.refreshIntervalMinutes,
+    pauseAiMultiplier: config.pauseAiMultiplier,
     language: currentLanguage,
   });
 });
